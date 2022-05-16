@@ -3,7 +3,7 @@ import random
 
 # FPS of the game window
 FPS = 10
-TITLE = 'Snake game by spaut33'
+TITLE = 'Snake game by spaut'
 MAX_CHAINS = 32
 SNAKE_COLOR = (55, 120, 255)
 FOOD_COLOR = (120, 255, 55)
