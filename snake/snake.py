@@ -1,7 +1,12 @@
-import pygame
 import random
+import pygame
+
+from dataclasses import dataclass
+from pygame.surface import Surface
 
 # FPS of the game window
+
+
 FPS = 10
 TITLE = 'Snake game by spaut'
 MAX_CHAINS = 32
@@ -11,99 +16,124 @@ TEXT_COLOR = (200, 200, 200)
 BG_COLOR = (0, 0, 0)
 WIDTH = 800
 HEIGHT = 600
-SNAKE_BLOCK_SIZE = 10
-SNAKE_SPEED = 10
+SNAKE_BLOCK_SIZE = 20
 
 
-class Snake:
-    def __init__(self, display):
-        self.snake_length = 1
-        self.max_chains = MAX_CHAINS
-        self.color = SNAKE_COLOR
-        self.display = display
-        self._snake_block_size = SNAKE_BLOCK_SIZE
-        self.dx = 0
-        self.dy = 0
-        self.x = WIDTH // 2
-        self.y = HEIGHT // 2
-        self.background_color = BG_COLOR
-        self.snake_head = (self.x, self.y)
-        self.snake_chain = [self.snake_head]
+@dataclass
+class DisplayWindow:
+    display: Surface
 
-    def change_direction(self, dx=0, dy=0):
+
+@dataclass
+class Snake(DisplayWindow):
+    snake_length: int = 1
+    max_chains: int = MAX_CHAINS
+    color: tuple = SNAKE_COLOR
+    snake_block_size: int = SNAKE_BLOCK_SIZE
+    dx: int = 0
+    dy: int = 0
+    x: float = WIDTH // 2
+    y: float = HEIGHT // 2
+    background_color: tuple = BG_COLOR
+    snake_head: tuple = (x, y)
+
+    def __post_init__(self) -> None:
+        self.snake_chain: list = [self.snake_head]
+
+    def change_direction(self, dx: int = 0, dy: int = 0) -> None:
         self.dx = dx
         self.dy = dy
 
-    def draw(self):
+    def draw(self) -> None:
         self.x += self.dx
         self.y += self.dy
         self.chain()
         self.display.fill(self.background_color)
         for x, y in self.snake_chain:
-            pygame.draw.rect(self.display, self.color,
-                             [x, y, self._snake_block_size, self._snake_block_size])
+            pygame.draw.rect(
+                self.display,
+                self.color,
+                [x, y, self.snake_block_size, self.snake_block_size],
+            )
 
-    def get_position(self):
+    def get_position(self) -> tuple:
         return self.x, self.y
 
-    def grow(self):
+    def grow(self) -> None:
         self.snake_length += 1
 
-    def chain(self):
+    def chain(self) -> None:
         self.snake_head = (self.x, self.y)
         self.snake_chain.append(self.snake_head)
         if len(self.snake_chain) > self.snake_length:
             del self.snake_chain[0]
 
-    def self_eat(self):
+    def self_eat(self) -> bool:
         for block in self.snake_chain[:-1]:
             if block == self.snake_head:
                 return True
+        return False
 
 
-class Food:
-    def __init__(self, display):
-        self.display = display
-        self.color = FOOD_COLOR
-        self._food_size = SNAKE_BLOCK_SIZE
-        self.x = round(random.randrange(0, WIDTH - self._food_size) // self._food_size) * self._food_size
-        self.y = round(random.randrange(0, HEIGHT - self._food_size) // self._food_size) * self._food_size
+@dataclass
+class Food(DisplayWindow):
+    food_size: int = SNAKE_BLOCK_SIZE
+    color: tuple = FOOD_COLOR
 
-    def draw(self):
-        pygame.draw.rect(self.display, self.color, [self.x, self.y, self._food_size, self._food_size])
+    def __post_init__(self) -> None:
+        self.x = (
+            round(
+                random.randrange(0, WIDTH - self.food_size) // self.food_size
+            )
+            * self.food_size
+        )
+        self.y = (
+            round(
+                random.randrange(0, HEIGHT - self.food_size) // self.food_size
+            )
+            * self.food_size
+        )
 
-    def get_position(self):
+    def draw(self) -> None:
+        pygame.draw.rect(
+            self.display,
+            self.color,
+            [self.x, self.y, self.food_size, self.food_size],
+        )
+
+    def get_position(self) -> tuple:
         return self.x, self.y
 
 
-class GameManager:
-    def __init__(self, display):
-        self.points = 0
-        self.display = display
+@dataclass
+class GameManager(DisplayWindow):
+    points: int = 0
 
-    def increase_points(self):
+    def increase_points(self) -> None:
         self.points += 1
 
-    def show_score(self):
+    def show_score(self) -> None:
         score_font = pygame.font.SysFont("tahoma", 14)
-        value = score_font.render("Score: " + str(self.points), True, TEXT_COLOR)
+        value = score_font.render(
+            "Score: " + str(self.points), True, TEXT_COLOR
+        )
         self.display.blit(value, [4, 2])
 
 
+@dataclass
 class GameWindow:
-    def __init__(self):
-        pygame.init()
-        self.game_over = False
-        self._width = WIDTH
-        self._height = HEIGHT
-        self._title = TITLE
-        self.display = pygame.display.set_mode((self._width, self._height))
-        pygame.display.set_caption(self._title)
-        self.game = GameManager(self.display)
-        self.snake = Snake(self.display)
-        self.food = Food(self.display)
+    pygame.init()
+    game_over: bool = False
+    _width: int = WIDTH
+    _height: int = HEIGHT
+    _title: str = TITLE
+    display: Surface = pygame.display.set_mode((_width, _height))
+    pygame.display.set_caption(_title)
+    game: GameManager = GameManager(display)
+    food: Food = Food(display)
+    snake: Snake = Snake(display)
 
-    def main_loop(self):
+    def main_loop(self) -> None:
         clock = pygame.time.Clock()
         while not self.game_over:
             for event in pygame.event.get():
@@ -135,19 +165,21 @@ class GameWindow:
             pygame.display.update()
             clock.tick(FPS)
 
-    def check_bounds(self):
+    def check_bounds(self) -> bool:
         x, y = self.snake.get_position()
         if x >= WIDTH or x < 0 or y >= HEIGHT or y < 0:
             return True
+        return False
 
-    def check_food(self):
+    def check_food(self) -> bool:
         x_snake, y_snake = self.snake.get_position()
         x_food, y_food = self.food.get_position()
         if x_snake == x_food and y_snake == y_food:
             return True
+        return False
 
 
-def main():
+def main() -> None:
     window = GameWindow()
     window.main_loop()
     print('Game over. Exiting...')
