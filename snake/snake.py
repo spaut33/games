@@ -1,40 +1,25 @@
-import random
+from food import Food
+
 import pygame
 
 from dataclasses import dataclass
 from pygame.surface import Surface
 
-# FPS of the game window
-
-
-FPS = 10
-TITLE = 'Snake game by spaut'
-MAX_CHAINS = 32
-SNAKE_COLOR = (55, 120, 255)
-FOOD_COLOR = (120, 255, 55)
-TEXT_COLOR = (200, 200, 200)
-BG_COLOR = (0, 0, 0)
-WIDTH = 800
-HEIGHT = 600
-SNAKE_BLOCK_SIZE = 20
+from settings import Settings
 
 
 @dataclass
-class DisplayWindow:
+class Snake:
     display: Surface
-
-
-@dataclass
-class Snake(DisplayWindow):
     snake_length: int = 1
-    max_chains: int = MAX_CHAINS
-    color: tuple = SNAKE_COLOR
-    snake_block_size: int = SNAKE_BLOCK_SIZE
+    max_chains: int = Settings.MAX_CHAINS
+    color: tuple = Settings.SNAKE_COLOR
+    snake_block_size: int = Settings.SNAKE_BLOCK_SIZE
     dx: int = 0
     dy: int = 0
-    x: float = WIDTH // 2
-    y: float = HEIGHT // 2
-    background_color: tuple = BG_COLOR
+    x: float = Settings.WIDTH // 2
+    y: float = Settings.HEIGHT // 2
+    background_color: tuple = Settings.BG_COLOR
     snake_head: tuple = (x, y)
 
     def __post_init__(self) -> None:
@@ -76,46 +61,19 @@ class Snake(DisplayWindow):
 
 
 @dataclass
-class Food(DisplayWindow):
-    food_size: int = SNAKE_BLOCK_SIZE
-    color: tuple = FOOD_COLOR
-
-    def __post_init__(self) -> None:
-        self.x = (
-            round(
-                random.randrange(0, WIDTH - self.food_size) // self.food_size
-            )
-            * self.food_size
-        )
-        self.y = (
-            round(
-                random.randrange(0, HEIGHT - self.food_size) // self.food_size
-            )
-            * self.food_size
-        )
-
-    def draw(self) -> None:
-        pygame.draw.rect(
-            self.display,
-            self.color,
-            [self.x, self.y, self.food_size, self.food_size],
-        )
-
-    def get_position(self) -> tuple:
-        return self.x, self.y
-
-
-@dataclass
-class GameManager(DisplayWindow):
+class GameManager:
+    display: Surface
     points: int = 0
 
     def increase_points(self) -> None:
         self.points += 1
 
     def show_score(self) -> None:
-        score_font = pygame.font.SysFont("tahoma", 14)
+        score_font = pygame.font.SysFont(
+            Settings.FONT_FAMILY, Settings.FONT_SIZE
+        )
         value = score_font.render(
-            "Score: " + str(self.points), True, TEXT_COLOR
+            "Score: " + str(self.points), True, Settings.TEXT_COLOR
         )
         self.display.blit(value, [4, 2])
 
@@ -124,14 +82,16 @@ class GameManager(DisplayWindow):
 class GameWindow:
     pygame.init()
     game_over: bool = False
-    _width: int = WIDTH
-    _height: int = HEIGHT
-    _title: str = TITLE
+    _width: int = Settings.WIDTH
+    _height: int = Settings.HEIGHT
+    _title: str = Settings.TITLE
     display: Surface = pygame.display.set_mode((_width, _height))
     pygame.display.set_caption(_title)
     game: GameManager = GameManager(display)
-    food: Food = Food(display)
     snake: Snake = Snake(display)
+
+    def __post_init__(self):
+        self.foods = self.create_foods()
 
     def main_loop(self) -> None:
         clock = pygame.time.Clock()
@@ -142,40 +102,62 @@ class GameWindow:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         # x change = -10; y change = 0
-                        self.snake.change_direction(dx=-SNAKE_BLOCK_SIZE)
+                        self.snake.change_direction(
+                            dx=-Settings.SNAKE_BLOCK_SIZE
+                        )
                     elif event.key == pygame.K_RIGHT:
                         # x change = 10; y change = 0
-                        self.snake.change_direction(dx=SNAKE_BLOCK_SIZE)
+                        self.snake.change_direction(
+                            dx=Settings.SNAKE_BLOCK_SIZE
+                        )
                     elif event.key == pygame.K_UP:
                         # y change = -10; x change = 0
-                        self.snake.change_direction(dy=-SNAKE_BLOCK_SIZE)
+                        self.snake.change_direction(
+                            dy=-Settings.SNAKE_BLOCK_SIZE
+                        )
                     elif event.key == pygame.K_DOWN:
                         # y change = 10; x change = 0
-                        self.snake.change_direction(dy=SNAKE_BLOCK_SIZE)
+                        self.snake.change_direction(
+                            dy=Settings.SNAKE_BLOCK_SIZE
+                        )
             if self.check_bounds() or self.snake.self_eat():
                 self.game_over = True
             if self.check_food():
                 self.snake.grow()
                 self.game.increase_points()
-                self.food = Food(self.display)
+                self.foods.append(Food(self.display))
 
             self.snake.draw()
-            self.food.draw()
+            for food in self.foods:
+                food.draw()
             self.game.show_score()
             pygame.display.update()
-            clock.tick(FPS)
+            clock.tick(Settings.FPS)
+
+    def create_foods(self):
+        foods = []
+        for i in range(Settings.MAX_FOODS):
+            foods.append(Food(self.display))
+        return foods
 
     def check_bounds(self) -> bool:
         x, y = self.snake.get_position()
-        if x >= WIDTH or x < 0 or y >= HEIGHT or y < 0:
+        if (
+            x >= Settings.WIDTH - 1
+            or x < 0
+            or y >= Settings.HEIGHT - 1
+            or y < 0
+        ):
             return True
         return False
 
     def check_food(self) -> bool:
         x_snake, y_snake = self.snake.get_position()
-        x_food, y_food = self.food.get_position()
-        if x_snake == x_food and y_snake == y_food:
-            return True
+        for i, food in enumerate(self.foods):
+            x_food, y_food = food.get_position()
+            if x_snake == x_food and y_snake == y_food:
+                self.foods.pop(i)
+                return True
         return False
 
 
